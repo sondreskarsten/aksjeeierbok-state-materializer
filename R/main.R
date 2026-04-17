@@ -108,6 +108,8 @@ main <- function() {
   log_info("processing years {min(all_years)}..{max(all_years)} ({length(all_years)} files)")
 
   con <- dbConnect(duckdb::duckdb(), ":memory:")
+  dbExecute(con, "INSTALL json")
+  dbExecute(con, "LOAD json")
   dbExecute(con, "SET threads=4")
   dbExecute(con, "SET memory_limit='12GB'")
 
