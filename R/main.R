@@ -3,6 +3,7 @@ library(duckdb)
 library(DBI)
 library(data.table)
 library(logger)
+library(gargle)
 library(googleCloudStorageR)
 
 METHODOLOGY_VERSION <- "2.0.0"
@@ -88,8 +89,18 @@ main <- function() {
   log_info("aksjeeierbok-state-materializer v{METHODOLOGY_VERSION} starting")
   t0 <- Sys.time()
 
-  gcs_auth(json_file = Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS",
-                                    unset = "/app/key.json"))
+  key_path <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", unset = "")
+  if (nzchar(key_path) && file.exists(key_path)) {
+    log_info("auth via service account key file {key_path}")
+    gcs_auth(json_file = key_path)
+  } else {
+    log_info("auth via GCE metadata (default application credentials)")
+    token <- gargle::credentials_gce(
+      scopes = "https://www.googleapis.com/auth/devstorage.read_write"
+    )
+    if (is.null(token)) stop("gargle::credentials_gce returned NULL — not on a GCE instance?")
+    gcs_auth(token = token)
+  }
   gcs_global_bucket(BUCKET)
 
   all_years <- list_changelog_years()
